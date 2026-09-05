@@ -4,11 +4,11 @@ import StatCard from '../components/StatCard';
 import { Package, AlertCircle, Clock, MessageSquare, ShieldAlert } from 'lucide-react';
 
 interface DashboardSummary {
-  open_procurement_requirements: int;
-  critical_shortages: int;
-  rfqs_awaiting: int;
-  supplier_responses: int;
-  pos_at_risk: int;
+  open_procurement_requirements: number;
+  critical_shortages: number;
+  rfqs_awaiting: number;
+  supplier_responses: number;
+  pos_at_risk: number;
 }
 
 export default function Dashboard() {
