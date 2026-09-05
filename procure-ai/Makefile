@@ -1,31 +1,31 @@
 .PHONY: up down build migrate seed test logs setup shell-db
 
 up:
-	docker-compose up -d
+up:
+	# Docker commands removed
 
 down:
-	docker-compose down
+	# Docker commands removed
 
 build:
-	docker-compose build
+	# Docker commands removed
 
 migrate:
-	docker-compose exec backend alembic upgrade head
+	# Docker commands removed
 
 seed:
-	docker-compose exec backend python -m app.db.seed
+	# Docker commands removed
 
 logs:
-	docker-compose logs -f
+	# Docker commands removed
 
 test:
-	docker-compose exec backend pytest
+	# Docker commands removed
 
 setup: build up
 	@echo "Waiting for DB to be ready..."
 	@sleep 5
-	make migrate
-	make seed
+	# Docker commands removed
 
 shell-db:
-	docker-compose exec db psql -U postgres -d procure_ai
+	# Docker commands removed
