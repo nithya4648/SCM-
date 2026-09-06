@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import uuid
+from typing import List
 
 from app.db.session import get_db
 from app.schemas.rfq import RFQCreate, RFQResponse
@@ -16,14 +17,34 @@ def create_rfq_endpoint(material_id: uuid.UUID, rfq_in: RFQCreate, db: Session =
     Create a new RFQ for a given material.
     Will dispatch mock emails to approved suppliers or to a specified fallback supplier.
     """
-    return rfq_service.create_rfq(db, material_id, rfq_in)
+    try:
+        return rfq_service.create_rfq(db, material_id, rfq_in)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@rfq_router.get("/", response_model=List[RFQResponse])
+def list_rfqs_endpoint(db: Session = Depends(get_db)):
+    """
+    List all RFQs.
+    """
+    try:
+        return rfq_service.list_rfqs(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @rfq_router.get("/{rfq_id}", response_model=RFQResponse)
 def get_rfq_endpoint(rfq_id: uuid.UUID, db: Session = Depends(get_db)):
     """
     Retrieve an RFQ by ID along with its items and supplier quotes.
     """
-    return rfq_service.get_rfq(db, rfq_id)
+    try:
+        return rfq_service.get_rfq(db, rfq_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @rfq_router.post("/{rfq_id}/compare", response_model=ComparisonResponse)
 def compare_rfq_endpoint(rfq_id: uuid.UUID, db: Session = Depends(get_db)):
@@ -59,3 +80,4 @@ def compare_rfq_endpoint(rfq_id: uuid.UUID, db: Session = Depends(get_db)):
     return comparison
 
 # Note: rfq_router is included in the main application elsewhere.
+

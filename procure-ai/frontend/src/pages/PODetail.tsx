@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import Badge from '../components/Badge';
-import { ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Truck, Loader2 } from 'lucide-react';
 
 export default function PODetail() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+
+  const [confirmQty, setConfirmQty] = useState('');
+  const [confirmDate, setConfirmDate] = useState('');
+  const [deliveryResult, setDeliveryResult] = useState<any>(null);
 
   const { data: po, isLoading: poLoading } = useQuery({
     queryKey: ['po', id],
@@ -15,7 +21,7 @@ export default function PODetail() {
     }
   });
 
-  const { data: risks, isLoading: risksLoading } = useQuery({
+  const { data: risks, isLoading: risksLoading, refetch: refetchRisks } = useQuery({
     queryKey: ['po-risks', id],
     queryFn: async () => {
       const res = await api.get(`/purchase-orders/${id}/risk`);
@@ -23,8 +29,26 @@ export default function PODetail() {
     }
   });
 
+  const confirmDelivery = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/purchase-orders/${id}/confirm`, {
+        confirmed_quantity: parseFloat(confirmQty),
+        first_delivery_date: new Date(confirmDate).toISOString(),
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setDeliveryResult(data);
+      queryClient.invalidateQueries({ queryKey: ['po', id] });
+      refetchRisks();
+    },
+  });
+
   if (poLoading || risksLoading) return <div className="text-slate-400">Loading Purchase Order...</div>;
   if (!po) return <div className="text-red-400">Purchase Order not found.</div>;
+
+  // Suggest values from PO items for the form
+  const totalQty = po.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -33,7 +57,7 @@ export default function PODetail() {
           <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Purchase Order</h1>
           <p className="text-slate-400 font-mono text-sm">{id}</p>
         </div>
-        <Badge variant={po.status === 'Created' ? 'info' : 'success'}>
+        <Badge variant={po.status === 'Created' ? 'info' : po.status === 'Confirmed' ? 'success' : 'default'}>
           {po.status}
         </Badge>
       </div>
@@ -64,6 +88,80 @@ export default function PODetail() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Delivery Confirmation Form */}
+          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-slate-400" />
+              Delivery Confirmation
+            </h2>
+
+            {deliveryResult ? (
+              <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">Delivery Confirmed</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                  <div>
+                    <span className="text-slate-400">Quantity Committed</span>
+                    <div className="text-white font-medium">{deliveryResult.quantity}</div>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Committed Date</span>
+                    <div className="text-white font-medium">
+                      {new Date(deliveryResult.committed_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-slate-400 text-sm">
+                  Simulate a supplier confirming delivery for this PO. This will trigger risk event
+                  analysis comparing against Sales Order requirements.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Confirmed Quantity</label>
+                    <input
+                      type="number"
+                      value={confirmQty}
+                      onChange={(e) => setConfirmQty(e.target.value)}
+                      placeholder={`Ordered: ${totalQty}`}
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Delivery Date</label>
+                    <input
+                      type="date"
+                      value={confirmDate}
+                      onChange={(e) => setConfirmDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => confirmDelivery.mutate()}
+                  disabled={confirmDelivery.isPending || !confirmQty || !confirmDate}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {confirmDelivery.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Truck className="w-4 h-4" />
+                  )}
+                  Confirm Delivery
+                </button>
+                {confirmDelivery.isError && (
+                  <div className="p-3 rounded-lg bg-red-900/10 border border-red-500/20 text-red-400 text-sm">
+                    {(confirmDelivery.error as any)?.response?.data?.detail || 'Confirmation failed'}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,7 +1,8 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 import uuid
-from app.models.procurement import RFQ, RFQItem, SupplierQuote
+from typing import List
+from app.models.procurement import RFQ, RFQItem, SupplierQuote, SupplierQuoteItem
 from app.models.master_data import Material
 from app.models.suppliers import SupplierMaterial, Supplier
 from app.schemas.rfq import RFQCreate
@@ -69,7 +70,27 @@ def create_rfq(db: Session, material_id: uuid.UUID, data: RFQCreate) -> RFQ:
 
 
 def get_rfq(db: Session, rfq_id: uuid.UUID) -> RFQ:
-    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    rfq = (
+        db.query(RFQ)
+        .options(
+            selectinload(RFQ.items),
+            selectinload(RFQ.quotes).selectinload(SupplierQuote.items),
+        )
+        .filter(RFQ.id == rfq_id)
+        .first()
+    )
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
     return rfq
+
+
+def list_rfqs(db: Session) -> List[RFQ]:
+    return (
+        db.query(RFQ)
+        .options(
+            selectinload(RFQ.items),
+            selectinload(RFQ.quotes),
+        )
+        .order_by(RFQ.created_at.desc())
+        .all()
+    )

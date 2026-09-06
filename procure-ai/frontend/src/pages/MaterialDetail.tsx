@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
 import Badge from '../components/Badge';
+import { ArrowRight } from 'lucide-react';
 
 export default function MaterialDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [rfqResult, setRfqResult] = useState<any>(null);
 
   // We reuse shortages to find the detail (in a real app, this would be a dedicated GET /materials/:id endpoint)
@@ -85,10 +87,16 @@ export default function MaterialDetail() {
                     <Badge variant="success">Status: {rfqResult.status}</Badge>
                   </div>
                   <p className="text-slate-400 text-sm break-all">ID: {rfqResult.id}</p>
-                  <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                  <div className="mt-4 pt-4 border-t border-emerald-500/20 flex items-center justify-between">
                     <p className="text-sm text-slate-300">
-                      Mock emails dispatched to suppliers. Quotes will appear here once extracted.
+                      Mock emails dispatched to {rfqResult.quotes?.length ?? 0} supplier(s).
                     </p>
+                    <button
+                      onClick={() => navigate(`/rfqs/${rfqResult.id}`)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                    >
+                      View RFQ <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -103,3 +111,4 @@ export default function MaterialDetail() {
     </div>
   );
 }
+

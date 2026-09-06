@@ -19,11 +19,24 @@ class RFQItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class SupplierQuoteItemResponse(BaseModel):
+    id: Optional[uuid.UUID] = None
+    rfq_item_id: Optional[uuid.UUID] = None
+    unit_price: Optional[float] = None
+    moq: Optional[float] = None
+    lead_time_days: Optional[int] = None
+    quoted_quantity: Optional[float] = None
+    manufacturer_part_number: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class SupplierQuoteResponse(BaseModel):
     id: uuid.UUID
     supplier_id: uuid.UUID
     status: str
     created_at: datetime
+    items: List[SupplierQuoteItemResponse] = []
 
     class Config:
         from_attributes = True

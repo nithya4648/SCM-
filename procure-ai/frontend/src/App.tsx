@@ -4,6 +4,9 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Shortages from './pages/Shortages';
 import MaterialDetail from './pages/MaterialDetail';
+import RFQList from './pages/RFQList';
+import RFQDetail from './pages/RFQDetail';
+import POList from './pages/POList';
 import PODetail from './pages/PODetail';
 
 const queryClient = new QueryClient({
@@ -26,6 +29,9 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/shortages" element={<Shortages />} />
                 <Route path="/materials/:id" element={<MaterialDetail />} />
+                <Route path="/rfqs" element={<RFQList />} />
+                <Route path="/rfqs/:id" element={<RFQDetail />} />
+                <Route path="/purchase-orders" element={<POList />} />
                 <Route path="/purchase-orders/:id" element={<PODetail />} />
               </Routes>
             </div>

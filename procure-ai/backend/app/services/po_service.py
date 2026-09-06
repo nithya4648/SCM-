@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import uuid
 from fastapi import HTTPException
+from typing import List
 from app.models.procurement import PurchaseOrder, PurchaseOrderItem, SupplierQuote, SupplierQuoteItem
 from app.models.advanced import ProcurementRecommendation
 from app.services.erp_adapter import get_erp_adapter
@@ -55,7 +56,21 @@ def approve_recommendation(db: Session, recommendation_id: uuid.UUID) -> Purchas
     return po
 
 def get_po(db: Session, po_id: uuid.UUID) -> PurchaseOrder:
-    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    po = (
+        db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
+        .filter(PurchaseOrder.id == po_id)
+        .first()
+    )
     if not po:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
     return po
+
+def list_pos(db: Session) -> List[PurchaseOrder]:
+    return (
+        db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
+        .order_by(PurchaseOrder.created_at.desc())
+        .all()
+    )
+
