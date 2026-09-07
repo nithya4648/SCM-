@@ -45,7 +45,7 @@ def extract_quote_from_email(raw_text: str, material_context: dict) -> Structure
     
     def _call_llm(p_system: str, p_user: str) -> str:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=p_user,
             config=genai.types.GenerateContentConfig(
                 system_instruction=p_system,
@@ -101,7 +101,7 @@ def generate_recommendation_explanation(comparison_result: dict) -> str:
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system_prompt,
@@ -136,7 +136,7 @@ def extract_delivery_from_email(raw_text: str) -> dict:
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system_prompt,
