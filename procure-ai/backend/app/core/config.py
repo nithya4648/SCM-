@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "procure_ai"
     POSTGRES_PORT: int = 5432
     
-    ANTHROPIC_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

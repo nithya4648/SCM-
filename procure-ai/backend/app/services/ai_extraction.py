@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, ValidationError
 from typing import Optional
 from app.core.config import settings
 from fastapi import HTTPException
-import anthropic
+from google import genai
 
 class StructuredQuote(BaseModel):
     supplier_name: Optional[str] = None
@@ -18,10 +18,10 @@ class StructuredQuote(BaseModel):
     manufacturer_part_number: Optional[str] = None
 
 def extract_quote_from_email(raw_text: str, material_context: dict) -> StructuredQuote:
-    if not settings.ANTHROPIC_API_KEY:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
         
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
     
     system_prompt = (
         "You are an AI assistant that extracts supplier quotation details from emails. "
@@ -44,13 +44,15 @@ def extract_quote_from_email(raw_text: str, material_context: dict) -> Structure
     prompt = f"Extract quote details from this email text:\n{raw_text}\n\nContext for material requested: {json.dumps(material_context)}"
     
     def _call_llm(p_system: str, p_user: str) -> str:
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=1024,
-            system=p_system,
-            messages=[{"role": "user", "content": p_user}]
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=p_user,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=p_system,
+                max_output_tokens=1024
+            )
         )
-        return response.content[0].text.strip()
+        return response.text.strip()
         
     # Attempt 1
     raw_response = _call_llm(system_prompt, prompt)
@@ -83,10 +85,10 @@ def generate_recommendation_explanation(comparison_result: dict) -> str:
     Takes the output of the deterministic recommendation engine and asks the LLM
     to generate a short natural-language justification.
     """
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.GEMINI_API_KEY:
         return "Recommendation generated automatically based on deterministic scoring (LLM disabled)."
         
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
     
     system_prompt = (
         "You are an expert procurement assistant. You are given a deterministic comparison of "
@@ -98,13 +100,15 @@ def generate_recommendation_explanation(comparison_result: dict) -> str:
     prompt = f"Comparison Data:\n{json.dumps(comparison_result, indent=2)}\n\nPlease provide a short justification for the top choice."
     
     try:
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=200,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}]
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=200
+            )
         )
-        return response.content[0].text.strip()
+        return response.text.strip()
     except Exception as e:
         return f"Recommendation generated successfully. (LLM explanation failed: {str(e)})"
 
@@ -112,10 +116,10 @@ def extract_delivery_from_email(raw_text: str) -> dict:
     """
     Uses LLM to extract confirmed quantity and delivery dates from an email.
     """
-    if not settings.ANTHROPIC_API_KEY:
-        raise HTTPException(status_code=500, detail="LLM extraction requires ANTHROPIC_API_KEY")
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="LLM extraction requires GEMINI_API_KEY")
     
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
     
     system_prompt = (
         "You are an AI assistant parsing a supplier email confirming a purchase order. "
@@ -131,14 +135,16 @@ def extract_delivery_from_email(raw_text: str) -> dict:
     prompt = f"Email Text:\n{raw_text}"
     
     try:
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=500,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}]
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=500
+            )
         )
         
-        raw_json = response.content[0].text.strip()
+        raw_json = response.text.strip()
         data = json.loads(raw_json)
         return data
     except Exception as e:
