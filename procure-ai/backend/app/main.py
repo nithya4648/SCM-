@@ -10,7 +10,15 @@ from app.routers.delivery import router as delivery_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.shortages import router as shortages_router
 
-app = FastAPI(title="Procure AI API")
+from contextlib import asynccontextmanager
+from app.core.scheduler import start_scheduler
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+
+app = FastAPI(title="Procure AI API", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(

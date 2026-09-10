@@ -94,7 +94,39 @@ def extract_quote(comm_id: uuid.UUID, rfq_id: uuid.UUID, db: Session = Depends(g
         db.commit()
         db.refresh(quote)
         
-        return {"status": "success", "quote_id": quote.id, "extracted_data": extracted.model_dump()}
+        all_quotes = db.query(SupplierQuote).filter(SupplierQuote.rfq_id == rfq_id).all()
+        all_extracted = all(q.status in ("Extracted", "Submitted") for q in all_quotes)
+        
+        recommendation_id = None
+        if all_extracted and all_quotes:
+            from app.services import recommendation_engine, ai_extraction
+            comparison = recommendation_engine.compare_quotes(rfq_id, db)
+            explanation = ai_extraction.generate_recommendation_explanation(comparison)
+            
+            from app.models.advanced import ProcurementRecommendation
+            rfq_item = db.query(RFQItem).filter(RFQItem.rfq_id == rfq_id).first()
+            if rfq_item:
+                best_quote_id = comparison["best_match"]["quote_id"] if comparison.get("best_match") else None
+                if best_quote_id:
+                    import uuid
+                    best_quote_id = uuid.UUID(best_quote_id)
+                rec = ProcurementRecommendation(
+                    material_id=rfq_item.material_id,
+                    rfq_id=rfq_id,
+                    supplier_quote_id=best_quote_id,
+                    recommended_action="select_supplier",
+                    reason=explanation,
+                )
+                db.add(rec)
+                db.commit()
+                db.refresh(rec)
+                recommendation_id = str(rec.id)
+                
+        response = {"status": "success", "quote_id": quote.id, "extracted_data": extracted.model_dump()}
+        if recommendation_id:
+            response["recommendation_id"] = recommendation_id
+            
+        return response
     except HTTPException:
         raise
     except Exception as e:
